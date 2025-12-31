@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Ventas Firebase</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+body{margin:0;font-family:Arial;background:#f4f6f8}
+/* LOGIN */
+#loginScreen{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#f4f6f8}
+#loginScreen input, #loginScreen select{padding:8px 12px;border-radius:6px;margin:5px}
+#loginScreen button{padding:10px 20px;border:none;border-radius:10px;background:#007aff;color:#fff;font-weight:bold;margin-top:10px}
+/* APP */
+header{display:flex;justify-content:center;gap:10px;padding:10px;background:#fff;box-shadow:0 2px 5px rgba(0,0,0,.1);flex-wrap:wrap}
+header button{padding:8px 16px;border:none;border-radius:20px;cursor:pointer;font-weight:bold}
+header button.active{background:#007aff;color:#fff}
+.container{padding:20px}
+h2{text-align:center;font-size:1.4em}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:15px}
+.card{background:#fff;border-radius:12px;padding:15px;text-align:center;box-shadow:0 4px 10px rgba(0,0,0,.1)}
+.card img{width:100%;height:120px;object-fit:cover;border-radius:8px}
+.precio{color:#27ae60;font-weight:bold}
+.selector{display:flex;justify-content:center;gap:10px;margin-bottom:10px}
+button{cursor:pointer}
+.btn{padding:10px;border:none;border-radius:8px;color:#fff;font-weight:bold;font-size:0.9em}
+.agregar{background:#3498db}
+.confirmar{background:#2ecc71;width:100%;margin-top:10px;font-size:1em}
+
+.flotante{position:fixed;bottom:20px;right:20px;width:55px;height:55px;background:#000;color:#fff;border-radius:50%;font-size:24px;display:flex;justify-content:center;align-items:center;cursor:pointer;z-index:1000}
+.badge{position:absolute;top:-5px;right:-5px;background:red;border-radius:50%;padding:4px 8px;font-size:12}
+
+.panel{position:fixed;top:60px;right:0;width:90%;max-width:350px;height:90%;background:#fff;padding:15px;box-shadow:-5px 0 20px rgba(0,0,0,.2);display:none;overflow:auto;z-index:1000}
+.panel .cerrar{background:#e74c3c;color:#fff;border:none;padding:6px 12px;border-radius:8px;cursor:pointer;margin-bottom:10px}
+
+.item{display:grid;grid-template-columns:1.5fr 1fr 1fr;border-bottom:1px solid #eee;padding:5px;font-size:14px}
+.vacio{text-align:center;color:#777;margin-top:20px}
+
+/* Pedidos */
+#contenidoPedidos{display:none}
+.tabsPedidos{display:flex;justify-content:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.tabsPedidos button{padding:6px 12px;border:none;border-radius:15px;cursor:pointer;font-weight:bold;margin-bottom:5px}
+.tabsPedidos button.active{background:#007aff;color:#fff}
+
+.cardPedido{background:#fff;border-radius:16px;padding:15px;margin-bottom:15px;box-shadow:0 4px 10px rgba(0,0,0,.1)}
+.info{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;font-size:14px}
+.estado{color:#fff;padding:4px 12px;border-radius:20px;font-size:12;font-weight:bold}
+.productos{border-top:1px solid #eee;border-bottom:1px solid #eee;padding:8px 0;margin-bottom:8px}
+.productoItem{display:grid;grid-template-columns:2fr 1fr 1fr;align-items:center;gap:10px;padding:5px 0;font-size:14px}
+.nombreProducto{font-weight:600}
+.detalleProducto{text-align:center;color:#555}
+.subtotalProducto{text-align:right;font-weight:bold}
+.total{font-size:16px;font-weight:bold;display:flex;justify-content:space-between;margin-bottom:10px}
+.boton{width:100%;padding:10px;border:none;border-radius:10px;background:#4cd964;color:#fff;cursor:pointer;font-weight:bold}
+
+/* Reportes */
+#contenidoReportes{display:none;}
+.tablaReportes{width:100%;border-collapse:collapse;margin-top:20px;font-size:0.9em}
+.tablaReportes th, .tablaReportes td{border:1px solid #ddd;padding:6px;text-align:center}
+.tablaReportes th{background:#007aff;color:#fff}
+
+/* RESPONSIVE */
+@media(max-width:600px){
+  .grid{grid-template-columns:1fr}
+  .card img{height:150px}
+  .selector{gap:5px}
+  .btn{width: 100%; font-size:0.9em;padding:12px}
+  .flotante{width:50px;height:50px;font-size:22px}
+  .panel{width:80%;padding:10px;top:55px;height:90%}
+  .productoItem{grid-template-columns:2fr 1fr 1fr;font-size:13px}
+  .total{font-size:15px}
+  .info{grid-template-columns:1fr;gap:4px;font-size:13px}
+  header{gap:5px;padding:8px}
+  header button{padding:6px 10px;font-size:0.9em}
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <h2>🛒 Iniciar Sesión</h2>
+  <input type="text" id="nombreUsuario" placeholder="Ingrese su nombre">
+  <select id="rolUsuario">
+    <option value="cliente">Cliente</option>
+    <option value="vendedor">Vendedor</option>
+  </select>
+  <input type="password" id="claveVendedor" placeholder="Ingrese clave (solo vendedor)" style="display:none">
+  <button id="btnLogin">Entrar</button>
+</div>
+
+<!-- APLICACIÓN -->
+<div id="mainApp" style="display:none">
+<header>
+  <button id="tabProductos" class="active">Productos</button>
+  <button id="tabPedidos">Pedidos</button>
+  <button id="tabReportes">Reportes</button>
+  <button id="btnLogout" style="margin-left:auto;background:#e74c3c;color:#fff"> x </button>
+</header>
+
+<div class="container">
+  <!-- PRODUCTOS -->
+  <div id="contenidoProductos">
+    <h2>🛒 Productos</h2>
+    <div id="productos" class="grid"></div>
+  </div>
+
+  <!-- PEDIDOS -->
+  <div id="contenidoPedidos">
+    <h2>📦 Pedidos</h2>
+    <div class="tabsPedidos">
+      <button id="tabPendientes" class="active">Pendientes</button>
+      <button id="tabHistorial">Historial</button>
+    </div>
+    <div style="text-align:center;margin-bottom:10px">
+      <input type="text" id="filtroCliente" placeholder="Filtrar por cliente" style="padding:5px 8px;border-radius:5px;margin-right:5px">
+    </div>
+    <div id="listaPedidos"></div>
+  </div>
+
+  <!-- REPORTES -->
+  <div id="contenidoReportes">
+    <h2>📊 Reportes de Ganancias</h2>
+    <table class="tablaReportes">
+      <thead>
+        <tr><th>Mes</th><th>Ganancias (RD$)</th></tr>
+      </thead>
+      <tbody id="tablaBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- CARRITO -->
+<div id="flotante" class="flotante">🛒 <span id="badge" class="badge" style="display:none">0</span></div>
+<div id="panel" class="panel">
+  <button id="cerrarCarritoBtn" class="cerrar">✖</button>
+  <h3>🧾 Carrito</h3>
+  <div id="lista"></div>
+  <h3 id="total"></h3>
+  <button class="btn confirmar">📦 Confirmar</button>
+</div>
+
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getFirestore, collection, addDoc, updateDoc, doc, serverTimestamp, onSnapshot, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+/* FIREBASE */
+const firebaseConfig = {
+  apiKey: "AIzaSyBYYgCwnjinYMphd_EPf15B-RGgT-qbjv4",
+  authDomain: "ventas-bdec8.firebaseapp.com",
+  projectId: "ventas-bdec8",
+  storageBucket: "ventas-bdec8.appspot.com",
+  messagingSenderId: "860234892214",
+  appId: "1:860234892214:web:0a20f71cd9ea20de15b717"
+};
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+/* ESTADO GLOBAL */
+let usuario = {nombre:"", rol:"cliente"};
+let productosData=[], carrito=[], cantidades={};
+let pedidosPendientes=[], pedidosHistorial=[];
+
+const productosDiv = document.getElementById("productos");
+const listaPedidosDiv = document.getElementById("listaPedidos");
+const tablaBody = document.getElementById("tablaBody");
+const panel = document.getElementById("panel");
+const lista = document.getElementById("lista");
+const badge = document.getElementById("badge");
+const btnConfirmar = document.querySelector(".btn.confirmar");
+
+/* LOGIN */
+document.getElementById("rolUsuario").onchange = (e)=>{ 
+  document.getElementById("claveVendedor").style.display = e.target.value === "vendedor" ? "block" : "none";
+};
+
+document.getElementById("btnLogin").onclick = ()=> {
+  const nombre = document.getElementById("nombreUsuario").value.trim();
+  const rol = document.getElementById("rolUsuario").value;
+  const clave = document.getElementById("claveVendedor").value.trim();
+  if(!nombre){ alert("Ingrese un nombre"); return; }
+  if(rol === "vendedor" && clave !== "1234"){ alert("Clave incorrecta"); return; }
+
+  usuario.nombre = nombre;
+  usuario.rol = rol;
+
+  document.getElementById("loginScreen").style.display = "none";
+  document.getElementById("mainApp").style.display = "block";
+
+  inicializarApp();
+};
+
+/* LOGOUT */
+document.getElementById("btnLogout").onclick = () => {
+  usuario = {nombre:"", rol:"cliente"};
+  carrito = [];
+  cantidades = {};
+  badge.style.display="none";
+  tablaBody.innerHTML="";
+  listaPedidosDiv.innerHTML="";
+  productosDiv.innerHTML="";
+  document.getElementById("mainApp").style.display="none";
+  document.getElementById("loginScreen").style.display="flex";
+};
+
+/* INICIALIZACIÓN */
+function inicializarApp(){
+  if(usuario.rol === "cliente"){
+    document.getElementById("tabPedidos").style.display="none";
+    document.getElementById("tabReportes").style.display="none";
+    document.getElementById("tabProductos").click();
+  } else if(usuario.rol === "vendedor"){
+    document.getElementById("tabProductos").click();
+    inicializarPedidos();
+    cargarReportes();
+  }
+
+  btnConfirmar.onclick = async () => {
+    if(!carrito.length){ alert("Carrito vacío"); return; }
+    await addDoc(collection(db,"ventas"),{
+      cliente: usuario.nombre,
+      productos: carrito,
+      total: carrito.reduce((s,p)=>s+p.precio*p.cantidad,0),
+      fecha: serverTimestamp(),
+      estado: "Pendiente"
+    });
+    carrito=[]; cantidades={}; 
+    actualizarBadge(); 
+    cerrarCarrito(); 
+
+    // Reiniciar contadores a 1
+    productosData.forEach(p=>{
+      const span = document.getElementById("c"+p.id);
+      if(span) span.innerText = 1;
+    });
+
+    alert("✅ Pedido enviado");
+  };
+
+  cargarProductos();
+}
+
+/* TABS PRINCIPAL */
+document.getElementById("tabProductos").onclick=()=>{mostrarContenido("productos");};
+document.getElementById("tabPedidos").onclick=()=>{mostrarContenido("pedidos");};
+document.getElementById("tabReportes").onclick=()=>{mostrarContenido("reportes");};
+
+function mostrarContenido(vista){
+  document.getElementById("contenidoProductos").style.display = vista==="productos"?"block":"none";
+  document.getElementById("contenidoPedidos").style.display = vista==="pedidos"?"block":"none";
+  document.getElementById("contenidoReportes").style.display = vista==="reportes"?"block":"none";
+  document.getElementById("tabProductos").classList.toggle("active", vista==="productos");
+  document.getElementById("tabPedidos").classList.toggle("active", vista==="pedidos");
+  document.getElementById("tabReportes").classList.toggle("active", vista==="reportes");
+}
+
+/* PRODUCTOS */
+async function cargarProductos(){
+  productosData=[];
+  const snap = await getDocs(collection(db,"productos"));
+  snap.forEach(d=>productosData.push({id:d.id,...d.data()}));
+  renderProductos();
+}
+
+function renderProductos(){
+  productosDiv.innerHTML="";
+  productosData.forEach(p=>{
+    productosDiv.innerHTML+=`
+    <div class="card">
+      <img src="imagenes/${p.imagen}">
+      <h4>${p.producto}</h4>
+      <p class="precio">RD$ ${p.precio}</p>
+      <div class="selector">
+        <button onclick="cambiar('${p.id}',-1)">➖</button>
+        <span id="c${p.id}">1</span>
+        <button onclick="cambiar('${p.id}',1)">➕</button>
+      </div>
+      <button class="btn agregar" onclick='agregar(${JSON.stringify(p)})'>Agregar</button>
+    </div>`;
+  });
+}
+
+window.cambiar=(id,v)=>{ cantidades[id]=Math.max(1,(cantidades[id]||1)+v); document.getElementById("c"+id).innerText=cantidades[id]; };
+window.agregar=p=>{ const c = cantidades[p.id]||1; const e = carrito.find(x=>x.id===p.id); e?e.cantidad+=c:carrito.push({...p,cantidad:c}); actualizarBadge(); };
+function actualizarBadge(){ const t=carrito.reduce((a,p)=>a+p.cantidad,0); badge.style.display=t?"block":"none"; badge.innerText=t; }
+
+const flotante = document.getElementById("flotante");
+flotante.onclick = ()=>{panel.style.display="block"; renderCarrito();};
+function cerrarCarrito(){ panel.style.display="none"; }
+
+function renderCarrito(){ 
+  lista.innerHTML=""; 
+  let t=0; 
+  carrito.forEach(p=>{ 
+    const s=p.precio*p.cantidad; 
+    t+=s; 
+    lista.innerHTML+=`<div class="item"><span>${p.producto}</span><span>${p.cantidad}×${p.precio}</span><span>RD$ ${s}</span></div>`; 
+  }); 
+  document.getElementById("total").innerText="Total: RD$ "+t.toLocaleString(); 
+}
+
+/* PEDIDOS */
+let vistaPedidos = "pendientes";
+document.getElementById("tabPendientes").onclick=()=>{vistaPedidos="pendientes"; document.getElementById("tabPendientes").classList.add("active"); document.getElementById("tabHistorial").classList.remove("active"); renderPedidos();};
+document.getElementById("tabHistorial").onclick=()=>{vistaPedidos="historial"; document.getElementById("tabHistorial").classList.add("active"); document.getElementById("tabPendientes").classList.remove("active"); renderPedidos();};
+
+const filtroCliente = document.getElementById("filtroCliente");
+filtroCliente.oninput=()=>renderPedidos();
+
+function inicializarPedidos(){
+  const ventasRef = collection(db,"ventas");
+  onSnapshot(ventasRef, (snapshot)=>{
+    pedidosPendientes = [];
+    pedidosHistorial = [];
+    snapshot.forEach(d=>{
+      const data = {id:d.id,...d.data()};
+      if(!data.fecha) data.fecha={seconds: Date.now()/1000};
+      if(data.estado==="Pendiente") pedidosPendientes.push(data);
+      else pedidosHistorial.push(data);
+    });
+
+    // Orden descendente por fecha
+    pedidosPendientes.sort((a,b)=>b.fecha.seconds - a.fecha.seconds);
+    pedidosHistorial.sort((a,b)=>b.fecha.seconds - a.fecha.seconds);
+
+    renderPedidos();
+  });
+}
+
+function renderPedidos(){
+  listaPedidosDiv.innerHTML="";
+  const filtroC = filtroCliente.value.toLowerCase();
+  let data = vistaPedidos==="pendientes"?pedidosPendientes:pedidosHistorial;
+
+  // FILTRO Y ORDEN
+  let filtrado = data.filter(p => !filtroC || p.cliente?.toLowerCase().includes(filtroC));
+
+  // Para historial, mostrar solo los primeros 15 entregados por fecha descendente
+  if(vistaPedidos === "historial") {
+    filtrado = filtrado
+      .filter(p => p.estado === "Entregado") // solo entregados
+      .sort((a,b)=> (b.fecha?.seconds||0) - (a.fecha?.seconds||0)) // orden descendente
+      .slice(0,15); // solo primeros 15
+  }
+
+  if(filtrado.length===0){
+    listaPedidosDiv.innerHTML='<p class="vacio">No hay registros</p>';
+    return;
+  }
+
+  filtrado.forEach(p=>{
+    const total = p.productos.reduce((acc,prod)=>acc+prod.precio*prod.cantidad,0);
+    const card = document.createElement("div");
+    card.className="cardPedido";
+    card.style.borderLeft = p.estado==="Pendiente"?"6px solid #ff9500":"6px solid #4cd964";
+
+    const info = document.createElement("div");
+    info.className="info";
+    info.innerHTML=`<span><b>Cliente:</b> ${p.cliente||'--'}</span>
+                    <span><b>Estado:</b> <span class="estado" style="background:${p.estado==="Pendiente"?"#ff9500":"#4cd964"}">${p.estado}</span></span>`;
+    card.appendChild(info);
+
+    const productosDiv = document.createElement("div");
+    productosDiv.className="productos";
+    p.productos.forEach(pr=>{
+      const div = document.createElement("div");
+      div.className="productoItem";
+      div.innerHTML=`<span class="nombreProducto">${pr.producto}</span><span class="detalleProducto">${pr.cantidad}×${pr.precio}</span><span class="subtotalProducto">RD$ ${pr.cantidad*pr.precio}</span>`;
+      productosDiv.appendChild(div);
+    });
+    card.appendChild(productosDiv);
+
+    const totalDiv = document.createElement("div");
+    totalDiv.className="total";
+    totalDiv.innerHTML=`<span>Total:</span><span>RD$ ${total}</span>`;
+    card.appendChild(totalDiv);
+
+    listaPedidosDiv.appendChild(card);
+
+    if(usuario.rol === "vendedor" && p.estado === "Pendiente"){
+  const btnEntregado = document.createElement("button");
+  btnEntregado.className = "btn confirmar";
+  btnEntregado.style.background = "#27ae60";
+  btnEntregado.style.marginTop = "8px";
+  btnEntregado.innerText = "✅ Marcar como entregado";
+  btnEntregado.onclick = async () => {
+    const docRef = doc(db, "ventas", p.id);
+    await updateDoc(docRef, { estado: "Entregado" });
+    
+  };
+  card.appendChild(btnEntregado);
+}
+
+  });
+}
+
+/* REPORTES */
+async function cargarReportes() {
+  const ventasSnap = await getDocs(collection(db, "ventas"));
+  const meses = {};
+  const nombresMeses = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+
+  ventasSnap.forEach(d => {
+    const v = d.data();
+    if (v.estado !== "Entregado") return;
+    const fecha = v.fecha?.toDate ? v.fecha.toDate() : new Date();
+    const key = `${fecha.getMonth()}-${fecha.getFullYear()}`; // usamos el índice del mes para ordenar
+    if (!meses[key]) meses[key] = 0;
+    meses[key] += v.total || 0;
+  });
+
+  // Renderizamos tabla
+  tablaBody.innerHTML = "";
+  Object.keys(meses).sort((a, b) => {
+    const [ma, ya] = a.split("-").map(Number);
+    const [mb, yb] = b.split("-").map(Number);
+    return ya !== yb ? yb - ya : mb - ma;
+  }).forEach(k => {
+    const [mesIndex, anio] = k.split("-").map(Number);
+    const nombreMes = nombresMeses[mesIndex]; // obtenemos el nombre del mes
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${nombreMes} ${anio}</td><td>RD$ ${meses[k].toLocaleString()}</td>`;
+    tablaBody.appendChild(tr);
+  });
+}
+
+// Ejecutar al cargar y luego cada 5 segundos
+cargarReportes();
+setInterval(cargarReportes, 3000);
+
+
+/* CERRAR CARRITO */
+document.getElementById("cerrarCarritoBtn").onclick=()=>cerrarCarrito();
+
+</script>
+</body>
+</html>
